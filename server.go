@@ -6,7 +6,7 @@ import (
 	"log"
 	"net/http"
 
-	"github.com/bobcob7/websocket-poc/messages"
+	"github.com/bobcob7/tech-debt/messages"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 )
