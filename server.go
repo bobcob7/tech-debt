@@ -11,6 +11,90 @@ import (
 	"github.com/gorilla/websocket"
 )
 
+// WSClient is how a Websocket Client is accessed
+type WSClient struct {
+	connection *websocket.Conn
+	receiver   chan []byte
+}
+
+// Send a message to this particular client
+func (client WSClient) Send(message []byte) error {
+	return client.connection.WriteMessage(websocket.BinaryMessage, message)
+}
+
+// Listen for messages from this client, and put them on the reciever channel
+func (client WSClient) Listen() {
+	defer client.connection.Close()
+	for {
+		mt, message, err := client.connection.ReadMessage()
+		if mt != websocket.BinaryMessage {
+			if err != nil {
+				log.Println("Weird message error:", err)
+				return
+			}
+		}
+		if err != nil {
+			log.Println("read error:", err)
+			return
+		}
+		log.Printf("recv: %s", message)
+		client.receiver <- message
+	}
+}
+
+// Hub is where all clients are kept and broadcasts are handled
+type Hub struct {
+	clients  []WSClient
+	Receiver chan []byte
+}
+
+// New creates a Hub
+func New() Hub {
+	return Hub{
+		clients:  make([]WSClient, 10),
+		Receiver: make(chan []byte, 10),
+	}
+}
+
+// AddClient adds a new client to the broadcast group
+func (hub *Hub) AddClient(connection *websocket.Conn) {
+	newClient := WSClient{connection, hub.Receiver}
+	go newClient.Listen()
+	hub.clients = append(hub.clients, newClient)
+}
+
+// Broadcast a message to every client
+func (hub *Hub) Broadcast(message []byte) []error {
+	errors := make([]error, 0)
+	for _, client := range hub.clients {
+		err := client.Send(message)
+		if err != nil {
+			errors = append(errors, err)
+		}
+	}
+	return errors
+}
+
+var hub = New()
+var sum = 0
+
+func echo(w http.ResponseWriter, r *http.Request) {
+	c, err := upgrader.Upgrade(w, r, nil)
+	if err != nil {
+		log.Print("upgrade:", err)
+		return
+	}
+	hub.AddClient(c)
+}
+
+// HubCounter recieves messages and broadcast their sums
+func HubCounter(h Hub) {
+	for {
+		message := <-h.Receiver
+		fmt.Println(message)
+	}
+}
+
 var currentDebt = &messages.TechDebt{}
 
 func checker(r *http.Request) bool {
