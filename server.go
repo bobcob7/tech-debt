@@ -1,6 +1,7 @@
 package main
 
 import (
+	"errors"
 	"flag"
 	"fmt"
 	"log"
@@ -13,29 +14,33 @@ import (
 
 // WSClient is how a Websocket Client is accessed
 type WSClient struct {
+	RemoteAddr string
 	connection *websocket.Conn
 	receiver   chan []byte
 }
 
 // Send a message to this particular client
 func (client WSClient) Send(message []byte) error {
-	return client.connection.WriteMessage(websocket.BinaryMessage, message)
+	if client.connection != nil {
+		return client.connection.WriteMessage(websocket.BinaryMessage, message)
+	}
+	return errors.New("no client connection")
 }
 
 // Listen for messages from this client, and put them on the reciever channel
 func (client WSClient) Listen() {
-	defer client.connection.Close()
+	//defer client.connection.Close()
 	for {
 		mt, message, err := client.connection.ReadMessage()
+		if err != nil {
+			log.Println("Weird message error:", err)
+			return
+		}
 		if mt != websocket.BinaryMessage {
 			if err != nil {
-				log.Println("Weird message error:", err)
+				log.Println("Weird message error 2:", err)
 				return
 			}
-		}
-		if err != nil {
-			log.Println("read error:", err)
-			return
 		}
 		log.Printf("recv: %s", message)
 		client.receiver <- message
@@ -51,48 +56,36 @@ type Hub struct {
 // New creates a Hub
 func New() Hub {
 	return Hub{
-		clients:  make([]WSClient, 10),
+		clients:  make([]WSClient, 0, 10),
 		Receiver: make(chan []byte, 10),
 	}
 }
 
 // AddClient adds a new client to the broadcast group
-func (hub *Hub) AddClient(connection *websocket.Conn) {
-	newClient := WSClient{connection, hub.Receiver}
+func (hub *Hub) AddClient(remoteAddr string, connection *websocket.Conn) {
+	log.Printf("Adding client for %s\n", remoteAddr)
+	newClient := WSClient{remoteAddr, connection, hub.Receiver}
 	go newClient.Listen()
 	hub.clients = append(hub.clients, newClient)
+	log.Printf("Existing users:")
+	for _, client := range hub.clients {
+		log.Println(client.RemoteAddr)
+	}
 }
 
 // Broadcast a message to every client
 func (hub *Hub) Broadcast(message []byte) []error {
 	errors := make([]error, 0)
+	log.Printf("Broadcasting to %d clients", len(hub.clients))
 	for _, client := range hub.clients {
 		err := client.Send(message)
 		if err != nil {
+			log.Printf("Error sending to %s: %s\n", client.RemoteAddr, err)
 			errors = append(errors, err)
 		}
+		log.Printf("Sent to %s\n", client.RemoteAddr)
 	}
 	return errors
-}
-
-var hub = New()
-var sum = 0
-
-func echo(w http.ResponseWriter, r *http.Request) {
-	c, err := upgrader.Upgrade(w, r, nil)
-	if err != nil {
-		log.Print("upgrade:", err)
-		return
-	}
-	hub.AddClient(c)
-}
-
-// HubCounter recieves messages and broadcast their sums
-func HubCounter(h Hub) {
-	for {
-		message := <-h.Receiver
-		fmt.Println(message)
-	}
 }
 
 var currentDebt = &messages.TechDebt{}
@@ -105,13 +98,15 @@ var upgrader = websocket.Upgrader{
 	CheckOrigin: checker,
 }
 
+var hub = New()
+
 func upgrade(w http.ResponseWriter, r *http.Request) {
 	c, err := upgrader.Upgrade(w, r, nil)
 	if err != nil {
 		log.Print("upgrade:", err)
 		return
 	}
-	defer c.Close()
+	//defer c.Close()
 	log.Printf("Got connection from %s", r.RemoteAddr)
 
 	// Immediately send current tech debt
@@ -121,21 +116,34 @@ func upgrade(w http.ResponseWriter, r *http.Request) {
 		log.Println("marshal err:", err)
 		return
 	}
-	err = c.WriteMessage(1, buffer)
+	err = c.WriteMessage(websocket.BinaryMessage, buffer)
 	if err != nil {
 		log.Println("write err:", err)
 		return
 	}
 
+	hub.AddClient(r.RemoteAddr, c)
+}
+
+func main() {
+
+	flag.Parse()
+	log.SetFlags(0)
+	http.HandleFunc("/ws", upgrade)
+	go handleAllUsers(&hub)
+	log.Println("Upgrade using ws://127.0.0.1:3000/ws")
+	log.Fatal(http.ListenAndServe(":3000", nil))
+}
+
+func handleAllUsers(h *Hub) {
+	currentDebt.TechDebt = 0
 	var receiveMsg = &messages.TechDebt{}
 	for {
-		// Get new message
-		mt, message, err := c.ReadMessage()
-		if err != nil {
-			log.Println("read err:", err)
-			break
-		}
-		err = proto.Unmarshal(message, receiveMsg)
+		// Get message
+		input := <-h.Receiver
+
+		// Unmarshal message
+		err := proto.Unmarshal(input, receiveMsg)
 		if err != nil {
 			log.Println("unmarshal err:", err)
 			break
@@ -143,6 +151,7 @@ func upgrade(w http.ResponseWriter, r *http.Request) {
 
 		// Add new tech debt
 		currentDebt.TechDebt += receiveMsg.TechDebt
+		currentDebt.Username = receiveMsg.Username
 		fmt.Printf("%s added %d points:\tCurrent Score: %d\n", receiveMsg.Username, receiveMsg.TechDebt, currentDebt.TechDebt)
 
 		// Write tech debt
@@ -151,19 +160,6 @@ func upgrade(w http.ResponseWriter, r *http.Request) {
 			log.Println("marshal err:", err)
 			break
 		}
-		err = c.WriteMessage(mt, buffer)
-		if err != nil {
-			log.Println("write err:", err)
-			break
-		}
+		hub.Broadcast(buffer)
 	}
-}
-
-func main() {
-	flag.Parse()
-	currentDebt.TechDebt = 0
-	log.SetFlags(0)
-	http.HandleFunc("/ws", upgrade)
-	log.Println("Upgrade using ws://127.0.0.1:3000/ws")
-	log.Fatal(http.ListenAndServe(":3000", nil))
 }

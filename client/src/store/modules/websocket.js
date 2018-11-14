@@ -62,6 +62,7 @@ const mutations = {
   SOCKET_ONMESSAGE (state, message) {
     state.socket.message = message
     var buffer = new messages.TechDebt().deserializeBinary(message)
+    console.log('Got message', buffer)
     state.techDebt = buffer.techDebt
   },
   // mutations for reconnect methods
