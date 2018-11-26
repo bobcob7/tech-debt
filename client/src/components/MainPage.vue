@@ -4,7 +4,7 @@
       <h1>Tech Debt Clock</h1>
     </b-row>
     <b-row class="justify-content-md-center">
-      <h2>{{$store.getters['websocket/techDebt']}}</h2>
+      <h2>{{$store.getters['techDebt']}}</h2>
     </b-row>
     <b-row>
       <b-col><b-button variant="danger" size="lg" @click="addDebt(1)">+</b-button></b-col>
@@ -38,7 +38,7 @@ export default {
   methods: {
     addDebt: function (count) {
       console.log('Adding Debt: ', count)
-      this.$store.dispatch('websocket/addDebt', count)
+      this.$store.dispatch('addDebt', count)
     }
   }
 }
