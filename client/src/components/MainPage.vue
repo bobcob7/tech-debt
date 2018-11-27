@@ -24,6 +24,47 @@
       <b-col><b-button variant="success" size="lg" @click="addDebt(-100)">-</b-button></b-col>
       <b-col><b-button variant="success" size="lg" @click="addDebt(-1000)">-</b-button></b-col>
     </b-row>
+    <b-row>
+    <b-col>
+      <b-btn v-b-modal.changeUsernameModal>Launch demo modal</b-btn>
+    </b-col>
+    </b-row>
+
+    <!-- Modal Component -->
+    <b-modal id="changeUsernameModal"
+    centered
+    title="Set Alias"
+    @ok="setUsername"
+    @hidden="resetUsername">
+      <b-container fluid>
+        <b-row>
+          <b-col>
+      <b-form-group id="usernameInputGroup"
+                    label="Alias:"
+                    label-for="usernameInput"
+                    horizontal>
+        <b-form-input id="usernameInput"
+                      type="text"
+                      v-model="tempUsername"
+                      required
+                      placeholder="Enter email">
+        </b-form-input>
+      </b-form-group>
+          </b-col>
+        </b-row>
+        <b-row>
+          <b-col>
+      <b-form-group label="Color"
+      horizontal>
+        <b-form-input type="color"
+        placeholder="#ff0000"
+        v-model="tempColor">
+        </b-form-input>
+      </b-form-group>
+          </b-col>
+        </b-row>
+      </b-container>
+    </b-modal>
   </b-container>
 </template>
 
@@ -32,13 +73,27 @@ export default {
   name: 'HelloWorld',
   data () {
     return {
-      logs: ''
+      logs: '',
+      tempUsername: 'Zero Cool',
+      tempColor: '#ff0000',
+      username: 'Zero Cool',
+      color: '#ff0000'
     }
   },
   methods: {
     addDebt: function (count) {
       console.log('Adding Debt: ', count)
       this.$store.dispatch('addDebt', count)
+    },
+    setUsername: function () {
+      console.log('Setting Username')
+      this.username = this.tempUsername
+      this.color = this.tempColor
+      this.$store.dispatch('setUsername', this.username)
+    },
+    resetUsername: function () {
+      this.tempUsername = this.username
+      this.tempColor = this.color
     }
   }
 }
