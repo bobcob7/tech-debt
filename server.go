@@ -7,7 +7,9 @@ import (
 	"log"
 	"net/http"
 
+	rice "github.com/GeertJohan/go.rice"
 	"github.com/bobcob7/tech-debt/messages"
+	"github.com/golang-collections/collections/stack"
 	"github.com/golang/protobuf/proto"
 	"github.com/gorilla/websocket"
 )
@@ -74,18 +76,36 @@ func (hub *Hub) AddClient(remoteAddr string, connection *websocket.Conn) {
 }
 
 // Broadcast a message to every client
-func (hub *Hub) Broadcast(message []byte) []error {
-	errors := make([]error, 0)
+func (hub *Hub) Broadcast(message []byte) {
+	errors := stack.New()
 	log.Printf("Broadcasting to %d clients", len(hub.clients))
-	for _, client := range hub.clients {
+	for index, client := range hub.clients {
 		err := client.Send(message)
 		if err != nil {
 			log.Printf("Error sending to %s: %s\n", client.RemoteAddr, err)
-			errors = append(errors, err)
+			errors.Push(index)
 		}
 		log.Printf("Sent to %s\n", client.RemoteAddr)
 	}
-	return errors
+
+	// Prune old clients
+	for errors.Len() > 0 {
+		tempIndex := errors.Pop()
+		if tempIndex == nil {
+			break
+		}
+		index := tempIndex.(int)
+
+		hub.DeleteClient(index)
+	}
+}
+
+func (hub *Hub) DeleteClient(index int) {
+	if len(hub.clients) == index {
+		hub.clients = hub.clients[:index]
+	} else if len(hub.clients) > index {
+		hub.clients = append(hub.clients[:index], hub.clients[index+1:]...)
+	}
 }
 
 var currentDebt = &messages.TechDebt{}
@@ -129,6 +149,7 @@ func main() {
 
 	flag.Parse()
 	log.SetFlags(0)
+	http.Handle("/", http.FileServer(rice.MustFindBox("client/dist").HTTPBox()))
 	http.HandleFunc("/ws", upgrade)
 	go handleAllUsers(&hub)
 	log.Println("Upgrade using ws://127.0.0.1:3000/ws")
