@@ -10,6 +10,8 @@ all: tech-debt
 .PHONY: clean prerequisites
 
 rice-box.go: client/dist/index.html
+	go get github.com/GeertJohan/go.rice
+	go get github.com/GeertJohan/go.rice/rice
 	rice embed-go
 
 client/dist/index.html: client/src/main.js client/src/messages/messages_pb.js
@@ -28,5 +30,4 @@ messages/messages_pb.go: messages.proto
 	protoc --go_out=messages/ messages.proto
 
 clean:
-	rm -rf tech-debt* client/dist
-	rm -rf client/src/messages messages
+	rm -rf tech-debt* client/dist client/src/messages messages rice-box.go
