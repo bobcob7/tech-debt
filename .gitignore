@@ -13,4 +13,6 @@
 
 rice-box.go
 **/*_pb.js
-**/*.pb.js
+**/*.pb.go
+
+tech-debt*
