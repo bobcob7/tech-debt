@@ -7,7 +7,8 @@ Vue.use(Vuex)
 
 export default new Vuex.Store({
   state: {
-    username: 'test',
+    username: 'Zero Cool',
+    color: '#ff0000',
     techDebt: 0,
     socket: {
       isConnected: false,
@@ -22,10 +23,11 @@ export default new Vuex.Store({
     }
   },
   mutations: {
-    set_username (state, username) {
-      console.log('Username set to ', username)
+    set_user_info (state, {username, color}) {
+      console.log('Username set to ', username + ' and ' + color)
       state.username = username
-      document.cookie = 'username=' + username + ';samesite'
+      state.color = color
+      document.cookie = 'username=' + username + ';color=' + color + ';samesite'
     },
     SOCKET_ONOPEN (state, event) {
       Vue.prototype.$socket = event.currentTarget
@@ -64,8 +66,8 @@ export default new Vuex.Store({
     sendMessage (context, message) {
       Vue.prototype.$socket.send(message)
     },
-    setUsername (context, username) {
-      context.commit('set_username', username)
+    setUserInfo (context, {username, color}) {
+      context.commit('set_user_info', {username, color})
     },
     getDebt () {
       Vue.prototype.$socket.send(0)
@@ -74,7 +76,10 @@ export default new Vuex.Store({
       context.state.techDebt += count
       var message = new messages.TechDebt()
       message.setUsername(context.state.username)
+      message.setColor(context.state.color)
       message.setTechdebt(count)
+      console.log('Username: ' + context.state.username)
+      console.log('Color: ' + context.state.color)
       let rawMessage = message.serializeBinary()
       console.log(rawMessage)
       Vue.prototype.$socket.send(rawMessage)

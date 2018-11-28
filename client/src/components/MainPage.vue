@@ -1,7 +1,7 @@
 <template>
   <b-container>
     <b-row class="justify-content-md-center">
-      <h1>Tech Debt Clock</h1>
+      <h1  v-bind:style="{ color: color }">Tech Debt Clock</h1>
     </b-row>
     <b-row class="justify-content-md-center">
       <h2>{{$store.getters['techDebt']}}</h2>
@@ -26,7 +26,8 @@
     </b-row>
     <b-row>
     <b-col>
-      <b-btn v-b-modal.changeUsernameModal>Launch demo modal</b-btn>
+      <b-btn v-b-modal.changeUsernameModal
+      variant="primary">{{username}}</b-btn>
     </b-col>
     </b-row>
 
@@ -89,7 +90,7 @@ export default {
       console.log('Setting Username')
       this.username = this.tempUsername
       this.color = this.tempColor
-      this.$store.dispatch('setUsername', this.username)
+      this.$store.dispatch('setUserInfo', {username: this.username, color: this.color})
     },
     resetUsername: function () {
       this.tempUsername = this.username

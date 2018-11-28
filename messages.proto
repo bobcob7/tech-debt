@@ -2,5 +2,6 @@ syntax = "proto3";
 
 message TechDebt {
   string username = 1;
-  int64 techDebt = 2;
+  string color = 2;
+  int64 techDebt = 3;
 }

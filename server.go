@@ -173,7 +173,8 @@ func handleAllUsers(h *Hub) {
 		// Add new tech debt
 		currentDebt.TechDebt += receiveMsg.TechDebt
 		currentDebt.Username = receiveMsg.Username
-		fmt.Printf("%s added %d points:\tCurrent Score: %d\n", receiveMsg.Username, receiveMsg.TechDebt, currentDebt.TechDebt)
+		currentDebt.Color = receiveMsg.Color
+		fmt.Printf("[%s]%s added %d points:\tCurrent Score: %d\n", receiveMsg.Color, receiveMsg.Username, receiveMsg.TechDebt, currentDebt.TechDebt)
 
 		// Write tech debt
 		buffer, err := proto.Marshal(currentDebt)
